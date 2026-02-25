@@ -43,10 +43,10 @@ Using the `here` package will allow us to import our raw data files from within 
 ```{r import raw data files, warning = FALSE}
 
 # Raw small mammal trapping data
-mammals_raw <- read_csv(here("Data", "raw", "mam_pertrapnight.csv"))
+mammals_raw <- read_csv(here("data", "raw", "mam_pertrapnight.csv"))
 
 # Raw vegetatino percent cover data
-plants_raw <- read_csv(here("Data", "raw", "div_1m2Data.csv"))
+plants_raw <- read_csv(here("data", "raw", "div_1m2Data.csv"))
 
 ```
 
