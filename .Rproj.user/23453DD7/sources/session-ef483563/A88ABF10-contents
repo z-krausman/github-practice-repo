@@ -1,0 +1,302 @@
+---
+title: "Practice wrangling NEON raw data"
+author: "Your Name"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+date: "YYYY-MM-DD"
+---
+
+# Getting ready!
+
+Today, we'll explore commands included in the `dplyr` package, which loads as part of the `tidyverse` package.
+
+```{r echo = FALSE, results = 'asis'}
+image = "https://biodash.github.io/codeclub/02_dplyr-core-verbs/featured.png"
+cat(paste0('<center><img src="', image,  '"></center>')) 
+```
+
+## Load packages & raw data files
+
+We have previously run the `install.packages()` commands for the packages we'll use today.
+
+However, it's still considered a best practice for reproducibility to include the installation commands-- hashed out by default-- so that if a collaborator *doesn't* have the packages, they can easily install them and then be ready to roll!
+
+```{r load packages, message = FALSE}
+
+#install.packages("tidyverse")
+#install.packages("here")
+
+library(tidyverse)
+library(here)
+
+```
+
+We'll explore data wrangling with NEON data that would allow us to address the hypothesis:
+
+-   **Small mammal abundance** is positively correlated with the **percent cover** of leaf litter in the understory.
+
+Using the `here` package will allow us to import our raw data files from within the raw data subfolder where we saved them.
+
+```{r import raw data files, warning = FALSE}
+
+# Raw small mammal trapping data
+mammals_raw <- read_csv(here("Data", "raw", "mam_pertrapnight.csv"))
+
+# Raw vegetatino percent cover data
+plants_raw <- read_csv(here("Data", "raw", "div_1m2Data.csv"))
+
+```
+
+## View structure of imported data
+
+A best practice after you import data is to take a look at its structure to get a sense of what you're working with. There are a number of ways we can do this!
+
+```{r, echo=TRUE, results='hide'}
+
+# Print the first 6 rows of the data set to the console
+head(mammals_raw)
+
+# Get a "glimpse" of the data set, including the value types of each variable
+glimpse(mammals_raw)
+
+# Print the structure of the data set 
+str(mammals_raw)
+
+# To open the data set in a new window, use view()
+view(mammals_raw)
+
+```
+
+We might also want to examine specific columns; for example, to see how many unique sites or unique species a data set includes.
+
+```{r}
+
+# Syntax here is data_object$column_of_interest
+
+unique(mammals_raw$siteID)
+
+unique(mammals_raw$taxonID)
+
+```
+
+Based on these early looks it is clear that there is a lot going on in this data set! We have 72 different variable columns and over 63000 unique observations (rows) collected across 23 different taxa from two distinct sites. Often, when starting with raw data sets, we want to apply a number of `wrangling` functions to clean things up and focus our analysis or visualization.
+
+This is where functions from within the `dplyr` function (part of the `tidyverse`) come in handy!
+
+------------------------------------------------------------------------
+
+# Wrangling with dplyr!
+
+The [`dplyr` package](https://rstudio.github.io/cheatsheets/html/data-transformation.html) within `tidyverse` contains a wide range of functions that we can use to wrangle our data.
+
+These include:
+
+-   **select():** subset columns
+-   **filter():** subset rows on conditions
+-   **mutate():** create new columns using information from other columns
+-   **rename():** change names of existing columns
+-   **count():** count discrete values
+-   **group_by()** and **summarize():** calculate summary statistics for grouped data
+-   **arrange():** sort results
+
+## Wrangling rodent/small mammals data
+
+### Select focal columns
+
+If we're interested specifically in small mammal abundance, we don't necessarily need to retain *all* of the columns from our raw dataset.
+
+We can use a `select()` command to indicate which columns we want to keep. Since it is essential that we keep our **raw data raw**, we will save this streamlined set of columns as a *new data object*.
+
+```{r}
+
+mammals <- mammals_raw %>% 
+  select(siteID, plotID, trapStatus, collectDate, tagID,
+         taxonID, scientificName, taxonRank)
+
+```
+
+Take a look at your more streamlined "mammals" data object in a separate window:
+
+```{r}
+
+view(mammals)
+
+```
+
+### Remove or keep specific observations (rows)
+
+We have now cut our dataset down from 72 columns to 8, but it seems like there may be lots of observations (rows) that may not contain the information we need: successful captures of individual rodents.
+
+To help focus our dataset, we can use a `filter()` command to retain (or remove) *rows* from our data set based on criteria we specify.
+
+Before we `filter()`, we may want to use a `distinct()` command to have R print out the unique types of data in a given column. Here, we're interested in what types of data were recorded for our "trapStatus" column.
+
+```{r}
+
+mammals %>% 
+  distinct(trapStatus)
+
+```
+
+We can then use a `filter()` command to exclude those rows that contain `NA` values for one or more focal variables, or to keep/remove rows based on other criteria, like trapStatus!
+
+```{r}
+
+mammals <- mammals %>% 
+  
+  # Exclude rows with "NA" values for taxonID
+  filter(!is.na(taxonID)) %>% 
+  
+  # Only retain types of listed trapStatus that correspond to captures
+  filter(trapStatus %in% c("4 - more than 1 capture in one trap", 
+                           "5 - capture"))
+
+```
+
+Ok, we're down to 7039 observations! This feels much more manageable *and* is a more focused dataset for addressing our question.
+
+**Note!** We could have combined both our `select()` and `filter()` commands in a single code chunk by linking the commands with a pipe (`%>%`)
+
+### Create new columns, group, and summarize
+
+In order to summarize our data by month (and year), we need to first create stand-alone month and year columns (since our existing date is a full yyyy-mm-dd). We can use the `month()` and `year()` commands from the `lubridate` package, which is part of `tidyverse`. We nest these within a `mutate()` command, which allows us to create a new column based on information in an existing column.
+
+Another powerful set of `dplyr` functions allows us to use a **split-apply-combine** paradigm, where we:
+
+-   **split** the data into groups
+-   **apply** an analysis to each group
+-   **combine** the results in a table
+
+To do this, we pair a `group_by()` command with `summarize()`
+
+We will group by site, plot, year and month, then use a `summarize()` function to calculate summary values for each month-year combination at each plot within each site.
+
+Here, we use an `n()` function as our summary calculation, since we want the *number* of rodents (abundance; count) collected each month.
+
+```{r}
+
+mammals_by_month <- mammals %>% 
+  
+  # Create stand-alone "year" and "month" columns from collectDate
+  mutate(month = month(collectDate),
+         year = year(collectDate)) %>% 
+  
+  # Group by & summarize
+  group_by(siteID, plotID, year, month) %>% 
+  summarize(count = n())
+
+# Look at our output
+view(mammals_by_month)
+
+```
+
+Ok, our rodent data are looking well-wrangled! On to the understory cover data!
+
+## Wrangle percent cover data
+
+Once again, we'll start off by taking a look at the data structure & column names.
+
+### View data structure
+
+```{r, echo=TRUE, results='hide'}
+
+# Print column names in the dataset
+names(plants_raw)
+
+# Indicate what type of data each column contains
+str(plants_raw)
+
+```
+
+### Summarize understory cover data by month
+
+This time, let's try conducting our summarize-by-site-plot-and-month steps *without* first creating a simplified dataset. As before, we'll create stand-alone columns for month and year before grouping & summarizing our percent cover data.
+
+Here, we use a `mean()` as our summary calculation, since we want the *average* percent cover of leaf litter within each plot each month.
+
+```{r}
+
+litter_cover <- plants_raw %>% 
+  filter(otherVariables == "litter",
+         plotType == "distributed") %>% 
+  mutate(year = year(endDate),
+         month = month(endDate)) %>% 
+  group_by(siteID, plotID, nlcdClass, year, month) %>% 
+  summarize(mean_litter_cover = mean(percentCover, na.rm = T)) %>% 
+  arrange(year, month)
+
+view(litter_cover)
+
+```
+
+As an aside, if you want your summary values to be rounded to a specific number of decimal points, you can add that in, too, using a round() command *within* your summarize functions. Just be careful about keeping track of your parentheses!! *(Turning on **rainbow parentheses** within your RStudio Global Settings can help by providing an additional visual cue about lining up open- and close-parentheses!)*
+
+Ok, this looks good! Next step is to combine our rodent data with the litter data!
+
+## Combining datasets to directly compare
+
+### Using a `join`
+
+R has a number of "join" functions that allow us to combine two datasets based on specified criteria. The most all-encompassing type of join is a `full_join()`, which will squish together all columns and rows from two different datasets, based on column names that are shared between them.
+
+For our our rodents and litter cover data, we can remind ourselves of the column names in common using:
+
+```{r}
+
+# Print names in mammals data object
+names(mammals_by_month)
+
+# Print names in litter cover data object
+names(litter_cover)
+
+# Even better! Directly list column names shared between two data objects
+names(mammals_by_month) %>%
+  intersect(names(litter_cover))
+
+```
+
+Since both datasets have "siteID", "plotID", "year", and "month" columns, when we join them together, the "count" (from rodents) and "mean_litter_cover" (from litter) data will be aligned in the dataset based on the year and month of collection at each site and plot.
+
+```{r}
+
+mammal_litter <- full_join(mammals_by_month, litter_cover) %>% 
+  arrange(year, month)
+
+view(mammal_litter)
+
+```
+
+In the joined dataset, we see that some site-plot-month combinations are missing either rodent count data and/or litter quantification. Rather than using an across-the-board `drop_na()` command, we will use targeted filters to exclude NA values from each of those focal columns.
+
+```{r}
+
+full_data <- mammal_litter %>% 
+  filter(!is.na(count),
+         !is.na(mean_litter_cover))
+
+```
+
+Now, you'd be ready to analyze and/or visualize your wrangled, combined datasets!
+
+# Saving & exporting your data!
+
+Typically, we will want to save a copy of *this* dataset to our **processed** data subfolder.
+
+Remember that if this is the *first* processed data file you are trying to save, you'll have to make your processed data subfolder first! We can do that using scripted commands.
+
+```{r}
+
+# Command to check if "processed" subfolder already exists, and create if not
+ifelse(!dir.exists(here("Data", "processed")), 
+       dir.create(here("Data", "processed")), "Folder exists already")
+
+# Write our wrangled data to the processed data subfolder
+full_data %>% 
+  write_csv(here("Data", "processed", "rodents_litter_combined.csv"))
+
+```
+
+Great! Our next step will be to break out into team work time so you can continue scripting to gather raw data, then develop an .Rmd to begin wrangling your project data! 

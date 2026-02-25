@@ -1,0 +1,7 @@
+"0",""
+"0","# Raw small mammal trapping data"
+"0","mammals_raw <- read_csv(here(""data"", ""raw"", ""mam_pertrapnight.csv""))"
+"0",""
+"0","# Raw vegetatino percent cover data"
+"0","plants_raw <- read_csv(here(""data"", ""raw"", ""div_1m2Data.csv""))"
+"0",""
