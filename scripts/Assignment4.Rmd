@@ -1,0 +1,107 @@
+---
+title: "Rmarkdown data wrangling practice"
+output: html_document
+author: "Your Name"
+date: "YYYY-MM-DD"
+---
+
+```{r Chunk 1, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+## Assignment 4
+
+This week we learned some ways to wrangle and summarize data in R. In this assignment, you will practice those skills and demonstrate your growing proficiency using Rmarkdown as you wrangle, explore, and summarize data from rodent trapping conducted as part of the Portal Project (<https://portal.weecology.org/>).
+
+The overall goal is to be able to answer the question of how rodent biomass varied among plot-level treatments for data collected from April 2015 onwards.
+
+Before you begin, you'll first need to download and save the **portal_rodent_biomass_by_plot.csv** and **portal_plot_treatments.csv** files to your **data –\> raw** subfolder. Save **Assignment4_Last_First.Rmd** into your **scripts** subfolder, updating "Last"and "First" in the file name with your name.
+
+In your .Rmd file, complete each code chunk below to accomplish the task. Answer listed “Check-in” questions using one or more complete sentences.
+
+-   **Chunk 1:** Setup (near the top of the .Rmd; don't touch this!)
+
+-   **Chunk 2:** Load tidyverse and here packages
+
+```{r Chunk 2}
+
+# Load tidyverse and here packages
+    
+
+```
+
+-   **Chunk 3:** Load the raw data (portal_rodent and portal_plot_treatments) and use a command to look at the rodent data structure
+
+```{r Chunk 3}
+
+# Read in raw rodent data
+rodents_raw <- 
+
+# Read in plot treatment data
+plot_trt <- 
+
+# Preview the rodent data structure
+
+
+```
+
+***Check in:*** What data structure is each of the following columns: censusdate, note1, wgt?
+
+-   **Chunk 4:** Use one series of piped commands to create a new data object, “rodents”, that omits any rows from rodents_raw that have data in the “note1” column and excludes rows that have NA values for weight or species.
+
+```{r Chunk 4}
+
+rodents <- 
+
+```
+
+***Check in:*** How many rows are retained in your **rodents** object?
+
+-   **Chunk 5:** Use an appropriate dplyr function to create new, separate columns for year and month in your “rodents” object.
+
+```{r Chunk 5}
+
+# Create new, separate columns for year and month
+rodents <- rodents %>%
+
+```
+
+-   **Chunk 6:** Create a new data object (“recent_rodents”) that only retains "rodents" observations from April 2015 onward. This data object should keep only the columns for year, month, plot, species, sex, and weight, in that order.
+
+```{r Chunk 6}
+
+
+
+```
+
+-   **Chunk 7:** Identify which columns are shared between recent_rodents and plot_trt, then join the two datasets into a new object, “rodent_trt”
+
+```{r Chunk 7}
+
+# Shared columns between recent_rodents and plot_trt
+
+
+
+# Join the two datasets into a new object 
+rodent_trt <- 
+
+```
+
+***Check-in:*** Which column(s) were shared between the two datasets? How many rows and columns are in the rodent_trt object?
+
+-   **Chunk 8:** Use a series of piped commands to produce a summary table of mean weight and standard error of rodents captured in each plot treatment type. Round the mean and standard error to two decimal places, then print the summary table.
+
+```{r Chunk 8}
+
+mean_biomass <- 
+
+# Print summary table
+
+
+```
+
+***Check-in:*** Which treatment type had the highest mean rodent biomass? Which had the lowest? Do these results surprise you? Why or why not?
+
+***Mini-reflection:*** On a scale of 1 (very easy) to 5 (very difficult), please rate how this assignment went for you and provide at least a 1-sentence explanation for your rating.
+
+Assignment citation: Raw data were accessed using the [`portalr` package](https://github.com/weecology/portalr).
