@@ -3,9 +3,9 @@
     "path": "~/Documents/R/github-practice-repo/scripts/NEON_data_wrangle_rodents_litter.Rmd",
     "project_path": "scripts/NEON_data_wrangle_rodents_litter.Rmd",
     "type": "r_markdown",
-    "hash": "2645175559",
+    "hash": "0",
     "contents": "",
-    "dirty": true,
+    "dirty": false,
     "created": 1771988218377.0,
     "source_on_save": false,
     "relative_order": 1,
@@ -16,11 +16,11 @@
         "scrollLine": "19"
     },
     "folds": "",
-    "lastKnownWriteTime": 1771988321,
+    "lastKnownWriteTime": 1771988684,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1771988337961,
+    "last_content_update": 1771988684,
     "read_only": false,
     "read_only_alternatives": []
 }
