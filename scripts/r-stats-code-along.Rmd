@@ -1,0 +1,348 @@
+---
+title: "R-Stats-Code-Along"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+## Introduction to Data Analysis
+
+In this exercise you'll learn how to conduct statistical tests on your data to test your hypotheses.
+
+First we'll load the tidyverse and the palmerpenguins packages.
+
+```{r load packages, results= "hide"}
+
+#Use the library function to load packages
+library(tidyverse)
+library(palmerpenguins)
+
+# We will use a command from the "car" package below, so we'll install it here:
+install.packages("car")
+library(car)
+
+```
+
+Next, we'll store a version of the penguins dataset that excludes rows with NA values in our key variables
+
+```{r}
+
+# Attach penguins data after excluding NA values
+penguins_no_NA <- penguins %>%
+  drop_na(flipper_length_mm, body_mass_g, sex, species) #selectively drop na's on focus variables
+
+head(penguins_no_NA)
+
+```
+
+## Stats for 2 Continuous Variables
+
+First we'll look at *correlation* and *linear regression* as ways to test whether there is a relationship between 2 continuous variables. We'll focus on whether penguins with a larger body size (measured by `flipper_length_mm`) also have a larger body mass (`body_mass_g`).
+
+It is generally a good practice to plot your data before doing any statistics; this allows you to confirm that the test you're planning is appropriate (e.g., do we see a potential linear relationship between our two variables?).
+
+```{r continuous plot}
+
+# Plot flipper length and body mass
+ggplot(data = penguins_no_NA,
+       aes(x = flipper_length_mm, 
+           y = body_mass_g)) +
+  geom_point() +
+  theme_classic() +
+  geom_smooth(method = "lm") #put a linear best fit line
+
+```
+
+Next, we will quantify the correlation between our two variables using the `cor()` function. This function is not part of the tidyverse, so we will need to use a slightly different format.
+
+The function takes an x and a y variable which we have to hand to it directly using the `$` operator to pull a single column out of a dataset like: `penguins_no_NA$flipper_length_mm`.
+
+The `cor()` function outputs a single value: the correlation coefficient (r).
+
+```{r correlation}
+
+cor_value <- cor(x = penguins_no_NA$flipper_length_mm, 
+                 y = penguins_no_NA$body_mass_g)
+
+print(cor_value) #the little r for the slope of the line of best fit
+
+```
+
+Alternatively we can use linear regression to quantify the **slope** of best fit line between our two variables and test whether that slope is *significantly different from zero*.
+
+We use the `lm()` function (linear model) to do this. Most model functions take a function argument and a data argument. The function represents the relationship you're testing for between columns and the data takes the name of the dataset.
+
+```{r linear regression}
+
+# Specify our linear model
+model1 <- lm(body_mass_g ~ flipper_length_mm, # ~ means as a function of
+             data = penguins_no_NA)
+
+# Print regression output
+summary(model1)
+
+# Compare R2 from model fit to our cor_value, squared
+cor_value^2
+
+```
+
+For more help interpreting model output, check out this [explainer](https://towardsdatascience.com/understanding-linear-regression-output-in-r-7a9cbda948b3).
+
+It's important to remember that our regression test has a number of assumptions that we need to confirm it meets before we move forward in our model interpretation!
+
+**Linear Regression Model Assumptions:**
+
+-   Observations are independent of each other
+-   There is a linear relationship between x and y
+-   Values of model residuals are normally distributed
+-   Variance of model residuals is the same across all values of x
+
+We should know whether the first assumption was met based on how data were collected. We can assess the other three assumptions using the `plot()` function to graph elements of our fitted linear model (from above, `model1`).
+
+***Linear Relationship: Residuals vs. Fitted Plot*** We plot the residuals vs. fitted (predicted) values of y and look at the relationship. Ideally, the points should be scattered around a (roughly) horizontal line centered at zero.
+
+```{r}
+
+# Residuals vs. fitted plot
+plot(model1, which = 1)
+
+```
+
+***Normality of Residuals: Q-Q Plot*** If the residuals are normally distributed, we expect the points to fall (approximately) along the diagonal line. The "tails" should not veer too far in either direction.
+
+```{r}
+
+# QQ residuals plot
+plot(model1, which = 2)
+
+```
+
+We can also use a **Shapiro test** to quantitatively assess normality.
+
+The null hypothesis for this test is that the residuals **are** normally distributed, so if p \> 0.05 (we fail to reject the null hypothesis), we infer that the normality assumption was met.
+
+```{r}
+
+# Shapiro test
+shapiro.test(model1$residuals) #this outcome is normal
+
+```
+
+***Consistent Variance of Residuals: Scale-Location Plot*** To test this, we use the "scale-location" plot of standardized residuals vs. fitted values. The fit should be roughly a horizontal line with points scattered around it randomly.
+
+```{r}
+
+# Scale-Location plot
+plot(model1, which = 3)
+
+```
+
+You can also have R plot all three panels at once for you to assess, using the following chunk:
+
+```{r}
+
+# Tell R to plot 1 row of 3 graphs
+par(mfrow = c(1, 3))
+
+# Make model diagnostic plots 1 through 3
+plot(model1, which = 1:3)
+
+```
+
+For a quick reference on what "good" and "bad" versions of these plots look like (and additional details on how to interpret them) see [this helpful resource](https://data.library.virginia.edu/diagnostic-plots/)
+
+## Stats for 1 Continuous Variable and 1 Categorical Variable
+
+### One-way ANOVA
+
+Now we'll use an ANOVA to test whether penguin flipper length differs by penguin species. You probably remember making a graph to visualize this a few weeks ago:
+
+```{r}
+
+# Plot body mass data by species
+ggplot(data = penguins_no_NA, 
+         aes(x = species, 
+             y = flipper_length_mm)) +
+  geom_jitter(aes(col = species),
+              width = 0.2) +
+  geom_boxplot(fill = NA, 
+               outlier.shape = NA) +
+  theme_bw()
+
+```
+
+Since the boxplot visualizes the median values rather than the mean, we might instead opt to superimpose over a calculated mean value for each species:
+
+```{r}
+
+# Calculate mean and sd for flipper length
+penguin_summary <- penguins_no_NA %>% 
+  group_by(species) %>% 
+  summarize(mean_flipper = mean(flipper_length_mm),
+            sd = sd(flipper_length_mm))
+
+
+# Plot jitter points (from full data) and mean +/- SD from summary
+ggplot(penguin_summary,
+       aes(x = species, 
+           y = mean_flipper)) +
+  geom_jitter(data = penguins_no_NA,
+              aes(x = species, 
+                  y = flipper_length_mm,
+                  col = species),
+              width = 0.25) +
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = mean_flipper - sd,
+                    ymax = mean_flipper +sd),
+                lwd = 1.5,
+                width = 0.5) +
+  theme_bw()
+
+```
+
+Let's start with just a single categorical variable (species).
+
+We will use the `aov()` function to create our ANOVA model using the same syntax as we did with the `lm()` function.
+
+After we have assigned our model (here, to the object name `model2`), we use the `summary()` function to view the output of the ANOVA test. This summary shows us whether at least one of the categorical groups (e.g. species) differed in terms of the continuous variable (e.g. body mass), but it doesn't tell us specifically which species were different from each other. To do that, we use a Tukey post-hoc test (`TukeyHSD()`) to identify which pairs of species differed from each other.
+
+```{r ANOVA}
+
+# Specify our model
+model2 <- aov(flipper_length_mm ~ species, data = penguins_no_NA) #aov is analysis of variance
+
+# View model output
+summary(model2)
+
+# Conduct Tukey test 
+TukeyHSD(model2)
+
+```
+
+Since p adj is listed as 0, that means there is a very significant difference between penguin groups for flipper lengths.
+
+Based on our ANOVA output and Tukey test, which (if any) penguins significantly differ in flipper length?
+
+We can update our plot to indicate significant differences by group:
+
+```{r}
+
+# Annotate plot
+ggplot(penguin_summary,
+       aes(x = species, 
+           y = mean_flipper)) +
+  geom_jitter(data = penguins_no_NA,
+              aes(x = species, 
+                  y = flipper_length_mm,
+                  col = species),
+              width = 0.25) +
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = mean_flipper - sd,
+                    ymax = mean_flipper +sd),
+                lwd = 1.5,
+                width = 0.5) +
+  annotate("text",
+           x = c(1, 2, 3),
+           y = c(210, 215, 235),
+           label = c("A", "B", "C"),
+           size = 5) +
+  theme_bw()
+
+```
+
+Just like with the linear regression model we need to check whether the assumptions of our ANOVA model are met.
+
+### **ANOVA Model Assumptions:**
+
+-   Observations are obtained independently and randomly from the populations defined by the groups
+-   Data in each group are normally distributed
+-   These populations in each group have a common variance
+
+Again the `plot()` function can help us out with this.
+
+-   The Q-Q plot tests for whether the residuals of the model are normal (if this is satisfied then the data in each category are close enough to normal)
+
+-   The Scale-Location plot tests for whether the categories differ in their variance. This is just like our tests of assumptions for the linear regression.
+
+```{r ANOVA assumptions}
+
+par(mfrow = c(1, 2))
+
+plot(model2, which = c(2, 3))
+
+```
+
+For categorical predictors, we can pair our visual check of variance with a quantitative Levene test to assess homogeneity of variance among groups. **Note**: The `leveneTest()` command requires that you install and load the `car` package.
+
+```{r}
+
+# Levene test 
+leveneTest(model2)
+
+```
+
+Here too, our null hypothesis is that the variance ***is*** equal among groups, so if we fail to reject the null hypothesis (p \> 0.05), we infer that the homogeneity of variance assumption was met.
+
+Based on our Levene test output, what should you infer about variance among the penguin species?
+
+### Two-way ANOVA
+
+If we add a second categorical variable (sex) to our analysis, we'll need to conduct a "two-way" ANOVA.
+
+Then you will take over to summarize and interpret the model output and test the model for variations of its assumptions!
+
+```{r 2 way ANOVA}
+
+model3 <- aov(flipper_length_mm ~ species + sex, data = penguins_no_NA)
+
+summary(model3)
+
+TukeyHSD(model3)
+
+par(mfrow = c(1, 2))
+plot(model3, which = c(2, 3))
+
+```
+
+On average, males have a significantly longer flipper length than females.
+
+**Recap:**
+
+-   You've learned how to calculate the correlation between two continuous variables
+-   You've learned how to run a linear regression test on the relationship between two continuous variables
+-   You've learned how to run an ANOVA test on the differences in a continuous variable between multiple groups of a categorical variable
+-   You've also learned how to test for violations of the assumptions of these tests
+
+## Exercise (Time-Permitting)
+
+We will now use some of the skills we've just learned to develop and answer a question of our own!
+
+As a table group:
+
+1.  Develop a question that can be answered with the `penguins` dataset.
+2.  Talk through how the data needs to be manipulated to get the appropriate answer. Would plotting the data be useful? Which `dplyr` verbs will you use to wrangle the data, and in what order?
+3.  What statistical test is appropriate for your question? Run this test and interpret the output.
+4.  Check the assumptions of the statistical test.
+
+```{r}
+
+# Write your analysis here, using one or more code chunks
+
+# 1. Are penguin bodies sizes different among islands?
+# 2. I think that separating every species on every island is probably easier to visual everything. There are three islands and three species. I think plotting it might be useful, but maybe having a separate scatter plot per island and species might be interesting to see. The variables we are looking at is body_mass_g, species, and island.
+# 3. I think we will need to use an ANOVA test since body_mass_g is a continuous variable, but island and species are categorical variables.
+# 4. Without looking at anything, I would think that there would be a slight variation between islands and species size.
+
+# Plot body mass data by island
+ggplot(data = penguins_no_NA, 
+         aes(x = island, 
+             y = body_mass_g)) +
+  geom_jitter(aes(col = island),
+              width = 0.2) +
+  geom_boxplot(fill = NA, 
+               outlier.shape = NA) +
+  theme_bw()
+
+```
