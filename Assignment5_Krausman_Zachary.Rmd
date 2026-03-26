@@ -1,0 +1,67 @@
+---
+title: "Assignment5_Krausman_Zachary"
+author: "Zachary Krausman"
+date: "2026-03-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+install relevant packages (if needed), load them, open the raw data set
+
+```{r load packages}
+# install.packages("tidyverse")
+# install.packages("here")
+# install.packages("pacman")
+# install.packages("cowplot")
+# install.packages("viridis")
+
+# OR
+pacman::p_load(tidyverse, here, cowplot, viridis, car)
+
+raw_fish <- read_csv(here("data", "raw", "pond_fish_body_morpho.csv"))
+```
+
+Create a new data object that utilizes the raw data and transforms some of it into a new column called body_condition
+
+```{r modify and clean table}
+fish_condition <- raw_fish %>%
+  mutate(body_condition = mass_g / length_mm) %>%
+  filter(!is.na(body_condition)) %>% 
+  
+  # is this line unnecessary? Seems like the table creation works without it
+  select(site, sci_name, common_name, length_mm, mass_g, body_condition)
+
+# selects for specific columns in the fish_condition object and runs summary stats on them
+summary(fish_condition[c("length_mm", "mass_g", "body_condition")])
+```
+
+Testing to see if the body condition of fish differed among species in pond_a by running an ANOVA and getting summary stats
+
+```{r run ANOVA}
+
+# sci_name and common_name both reflect the same computed values for x
+fish_anova <- aov(body_condition ~ sci_name, 
+                  data = fish_condition)
+
+# prints out our summary statistics
+summary(fish_anova) 
+
+# this prints out our sum of squares, deg. of freedom, & residual standard error
+print(fish_anova) 
+
+
+# fish_regression <- lm(body_condition ~ common_name, data = fish_condition)
+# summary(fish_regression)
+# print(fish_regression)
+# 
+# anova(fish_regression)
+```
+
+\*\* Do we need to use the aov or lm function? They all appear to do the same thing within reason. It seems like the anova() function for lm also just rewrites the summary statistics. Additionally, why does the first variable get listed as "intercept" but every other variable gets listed out?
+
+descriptive statistics output line: F(df between, df within)=XX, p=XX
+
+The anova descriptive statistic results are **F(2, 172) = 153.7, p = 2e-16**. The p value is highly significant which means that there is a significant difference between body condition size among the three species of fish.
