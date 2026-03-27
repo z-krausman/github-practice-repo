@@ -20,7 +20,7 @@ library(tidyverse)
 library(palmerpenguins)
 
 # We will use a command from the "car" package below, so we'll install it here:
-install.packages("car")
+# install.packages("car")
 library(car)
 
 ```
