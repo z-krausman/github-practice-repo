@@ -1,0 +1,676 @@
+---
+title: "Data Visualization (ggplot2) Overview"
+author: "Kait Farrell"
+date: "2026-02-26"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Pairing graphs with calculations & statistics
+
+> “…make both calculations and graphs. Both sorts of output should be studied; each will contribute to understanding.” F.J. Anscombe, 1973
+
+It is important to combine calculations/statistical analyses with data visualization to help yourself and your audience get a complete picture of what the data show.
+
+Indeed, we can get ourselves into trouble when we look solely at summary statistics to understand patterns in our data, as similar underlying distributions can result in identical summary outputs.
+
+![](https://juliasilge.com/blog/datasaurus-multiclass/index_files/figure-html/unnamed-chunk-3-1.png)
+
+# Data visualization principles
+
+Before launching in to *making* graphs, it's important to think about principles of effective data visualization.
+
+A few of these include:
+
+-   Using the appropriate **plot type** for your data (type/structure) & your data viz goal
+-   Plotting **independent** (explanatory) variable on the x-axis, **dependent** (response) variable on the y-axis
+-   Updating **axis labels** to include units; ensuring they are easy to read
+-   Including a clear **legend** defines what points/lines represent
+-   Using a consistent color scheme: When plotting the same data across multiple graphs, use same color scheme throughout for visual consistency
+-   Visualizing measures of **uncertainty/variability** as appropriate (error bars for SD, SE, CI, etc.)
+-   Including a concise and informative **caption** that defines what data points show (& corresponding colors, if appropriate) and what error bars and/or best fit line (if present) represent
+
+------------------------------------------------------------------------
+
+# Visualizing data using ggplot2
+
+We will focus on plotting using the `ggplot2` package, which automatically loads as part of the tidyverse when you run the command `library(tidyverse)`.
+
+A strength and challenge of using `ggplot2` is that there are nearly endless ways you can customize and refine your plots. As such, it's important to have a useful and readable reference guide that you can search when you know what you *want* to do, but aren't yet sure *how* to do it in ggplot phrasing.
+
+I recommend the following three resources as a starting point:
+
+-   [ggplot2 reference manual](https://ggplot2.tidyverse.org/reference/index.html)
+-   [R Graphics Cookbook](https://r-graphics.org/)
+-   [R colors](https://r-charts.com/colors/) (specifically for finding *just* the right color options for your plots)
+
+## Recipe for a ggplot
+
+`ggplot2` graphs follow the "grammar of graphics" approach, which uses up to 7 parameters to uniquely define any graph.
+
+Those parameters are:\
+1. a dataset\
+2. a set of mappings ("aesthetics")\
+3. a position adjustment (scale)\
+4. a geometric object (how we visually depict data points on the plot)\
+5. a statistic\
+6. a faceting scheme\
+7. a coordinate system
+
+<center>![](https://blog.gramener.com/wp-content/uploads/2018/11/7-layers-of-grammar-of-graphics-to-tell-powerful-data-stories-3.png)</center>
+
+While you *can* include all 7 components to create a highly customized graph, a “complete” graph only requires a dataset, mapping aesthetics (aes) and one geom.
+
+To get started, we'll first load four packages (tidyverse, palmerpenguins, cowplot, and viridis) *and* assign the built-in "penguins" dataset as a data object. To simplify package loading, I recommend the `pacman` package (second half of the chunk below); once you install `pacman`, you can use the `p_load()` command to install (if needed) and load packages you list.
+
+```{r, message = FALSE, results = FALSE}
+
+## Install packages, if needed, by un-hashing the lines below
+#install.packages("tidyverse")
+#install.packages("palmerpenguins")
+#install.packages("cowplot")
+#install.packages("viridis")
+
+## Load packages we'll use today
+#library(tidyverse)
+#library(palmerpenguins)
+#library(cowplot)
+#library(viridis)
+
+## OR use `pacman` package
+install.packages("pacman")
+
+pacman::p_load(tidyverse, here, palmerpenguins, cowplot, viridis)
+
+```
+
+```{r}
+
+# Attach built-in penguin dataset from palmerpenguins package
+data(penguins)
+
+# Take a quick look at the data structure & contents
+glimpse(penguins)
+
+```
+
+## Visualizing data distributions
+
+### Histograms
+
+```{r}
+
+# A basic histogram
+ggplot(data = penguins, 
+       aes(x = bill_length_mm))  +
+  geom_histogram() 
+
+```
+
+While your data plotted, you probably got a warning to the effect of:
+
+> "`stat_bin()` using `bins = 30`. Pick better value with `binwidth`."
+
+This means that there is a mismatch between how many "bins" along the x-axis you are setting up and the size of the dataset.
+
+You can adjust the number of bins manually by including the `bins = XX` command within your geom_histogram call (substituting in an integer for "XX").
+
+You may also have noticed another warning:
+
+> "Removed 2 rows containing non-finite values (`stat_bin()`)."
+
+This is R giving you a heads-up that two observations in your dataset were missing values for the requested x-axis variable (in this case, bill length), so those observations were not plotted.
+
+It is important, when making your own figures, that you investigate whether this type of warning is driven by NA values in your dataset (no problem) *or* if you have manually set axis limits that are excluding data points, in which case you should adjust your axes to encompass all your observations!
+
+In this case, we'll exclude our NA values so we avoid getting the same warning message each time we plot.
+
+```{r}
+
+# Remove NA bill_length observations
+penguins <- penguins %>% 
+  filter(!is.na(bill_length_mm))
+
+```
+
+Now, let's try making a histogram with an adjusted number of bins:
+
+```{r}
+
+# Adjust number of bins
+ggplot(data = penguins, 
+       aes(x = bill_length_mm))  +
+  geom_histogram(bins = 15) 
+
+```
+
+Now that the bin number is a better fit to our dataset, we can add additional aesthetics and ggplot layers to customize our plot and the story it is telling.
+
+For example, we can include a `labs()` command to customize our x- and y-axis labels, & add a built-in theme command to adjust the non-data aesthetics of our figure.
+
+Some of the [built-in themes](https://ggplot2.tidyverse.org/reference/ggtheme.html) include `theme_bw()`, `theme_bw()`, `theme_light`, etc.
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm)) + 
+  geom_histogram(bins = 15) +
+  labs(x = "Bill length (mm)", 
+       y = "Observations") +
+  theme_bw()
+
+```
+
+We can include an additional mapping aesthetic (`fill = XX`) to tell R to fill our histogram bars based on the penguin species:
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     fill = species)) + 
+  geom_histogram(bins = 15,
+                 alpha = 0.65) + #alpha value modifies transparency of data on graph
+  labs(x = "Bill length (mm)", 
+       y = "Observations") +
+  theme_bw()
+
+```
+
+Finally, we might want to adjust the y-axis to specify the min/max axis values (`limits = c(min, max)`) and how frequently tick marks will be shown (`breaks = seq(min, max, interval)`).
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     fill = species)) + 
+  geom_histogram(bins = 15,
+                 alpha = 0.6) +
+  labs(x = "Bill length (mm)", 
+       y = "Observations") +
+  scale_y_continuous(limits = c(0, 60), #min and max values on axis
+                     breaks = seq(0, 60, 10)) + #how frequently we want the breaks to happen
+  theme_bw()
+
+```
+
+### Density plots
+
+You use similar approaches to make a density plot, but substitute in `geom_density()` as your geom.
+
+Here, the `alpha = XX` command allows us to specify how transparent to make the fill colors; alpha ranges from 0 (transparent) to 1 (opaque). This can be helpful when we have overlapping data that would be obscured by opaque fills.
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     fill = species)) + 
+  geom_density(alpha = 0.6) +
+  labs(x = "Bill length (mm)", 
+       y = "Density") +
+  scale_y_continuous(limits = c(0, 0.15),
+                     breaks = seq(0, 0.15, 0.05)) +
+  theme_bw()
+
+```
+
+### Boxplots
+
+Boxplots are an information-rich way to display distribution data, because they explicitly visualize the median, interquartile range, and any outliers (y-axis) among one or more categorical variables (x-axis).
+
+When making a boxplot, you'll need to map aesthetics for your x-axis variable (something categorical) *and* your y-axis (something numeric). Aesthetics for `fill` or `color` are optional.
+
+-   `fill = "color_name"` changes the *interior* of your boxplot; use `fill = NA` to keep it transparent
+
+-   `color = "color_name"` changes the border color of your boxplots
+
+For example, our bill length data visualized as boxplots by species looks like:
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = species,
+                     y = bill_length_mm,
+                     fill = species)) +
+  geom_boxplot() +
+  labs(x = "Species", 
+       y = "Bill length (mm)") +
+  scale_y_continuous(limits = c(20, 60),
+                     breaks = seq(20, 60, 10)) +
+  theme_bw()
+
+```
+
+While boxplots pack in a lot of information, it can still be useful to include a visualization of the full dataset. We can use an additional geom, like `geom_jitter()` to include the raw data points.
+
+We'll include this geom *before* our `geom_boxplot()` call so that the points appear *behind* the boxplots (layers are added to our ggplot in the order they are written). Note that we'll now specify `fill = NA` within our `geom_boxplot()` call so that the boxplot itself is transparent and the points behind it, which are colored by species, can show through:
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = species,
+                     y = bill_length_mm,
+                     color = species)) + 
+  geom_jitter(width = 0.2, alpha = 0.6) +
+  geom_boxplot(fill = NA, lwd = 1, 
+               color = "gray40") + #changing the color of the boxplot fill
+  labs(x = "Species", 
+       y = "Bill length (mm)") +
+  scale_y_continuous(limits = c(20, 60),
+                     breaks = seq(20, 60, 10)) +
+  theme_bw()
+
+```
+
+### Violin plots
+
+Violin plots also show distributions of datapoints, with the shape changing depending on how the data points are distributed along the y-axis variable.
+
+Here, the `width = XX` parameter specifies how broadly across the x-axis the points should spread, where a value of 0 represents no spread and all points centered horizontally. This is often a value you need to "play with" to make sure points are visible without overlapping with adjacent categories on the x-axis.
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = species,
+                     y = bill_length_mm,
+                     color = species)) + 
+  geom_jitter(width = 0.3, alpha = 0.6) +
+  geom_violin(fill = NA,
+              color = "gray30") +
+  labs(x = "Species", 
+       y = "Bill length (mm)") +
+  scale_y_continuous(limits = c(20, 60),
+                     breaks = seq(20, 60, 10)) +
+  theme_bw()
+
+```
+
+## Compare values among categorical variables
+
+### Bar plots
+
+`geom_bar()` is used to make a bar plot, often to visualize the mean values among categorical groups. When plotting a mean or other summary value, it is essential that we include error bars to visualize a metric of variability or uncertainty (e.g., standard deviation, standard error, confidence interval, etc.).
+
+As with `geom_boxplot()`, the commands for `fill = xx` and `color = xx` correspond to the interior fill and border colors of the bars, respectively.
+
+By default, `geom_bar()` plots the *number* of observations for each value of x. In this case, we do not include a y-axis variable:
+
+```{r}
+
+ggplot(penguins, 
+       aes(x = species, 
+           fill = species)) + 
+  geom_bar() +
+  labs(y = "Number of observations", x = "Species")
+
+```
+
+We include a `stat = "identity"` command within out `geom_bar()` to specify that we want to plot the actual y-values.
+
+What is the plot below actually showing us?
+
+```{r}
+
+ggplot(penguins, 
+       aes(x = species, 
+           y = body_mass_g, 
+           fill = species)) + 
+  geom_bar(stat = "identity")
+
+```
+
+In this dataset, our *default* `stat = "identity"` bar plot visualizes the *sum* of body mass among individual penguins in each species!
+
+If keeping this graph type, we should refine it to make the y-axis more easily interpretable and also more clearly labelled.
+
+```{r}
+
+ggplot(penguins, 
+       aes(x = species, 
+           y = body_mass_g/100, #makes the y axis graph easier to interpret
+           fill = species)) + 
+  geom_bar(stat = "identity") +
+  labs(y = "Total penguin body mass (kg)") +
+  theme_bw()
+
+```
+
+### Adding error bars to your data
+
+If we want to *actually* plot the mean +/- a metric of variability, we'll need a different approach.
+
+A `geom_errorbar()` command allows us to add error bars to our ggplots. However, to use this command, we have to first calculate our summary statistics as a separate object; here, we'll calculate it as "mean_mass".
+
+```{r}
+
+mean_mass <- penguins %>% 
+  filter(!is.na(body_mass_g)) %>% 
+  group_by(species) %>% 
+  summarise(mean_mass = mean(body_mass_g),
+            sd = sd(body_mass_g))
+
+print(mean_mass)
+
+```
+
+Now, we can use `geom_errorbar()` to add a layer to our plot that includes the standard error we calculated. Notice that we are changing our plot to use the mean_mass object, with our y-axis variable updated accordingly.
+
+The `width = XX` command within our `geom_errorbar()` controls the width of the error bar crossbars, relative to the width of the bar.
+
+```{r}
+
+ggplot(mean_mass, 
+       aes(x = species, 
+           y = mean_mass, 
+           fill = species)) + 
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_mass - sd, 
+                    ymax = mean_mass + sd),
+                width = 0.5) + #crossbar width
+  scale_y_continuous(limits = c(0, 6000),
+                     breaks = seq(0, 6000, 1000)) +
+  theme_bw()
+
+```
+
+Of course, you may still opt to visualize your categorical data with points to show the underlying data patterns (bar plots can hide *a lot* of information!). In which case, you could pair your summary mean_mass values to superimpose a layer with the mean and metric of variability (e.g., standard deviation, shown below) *within* your plot.
+
+Notice that for this approach, we have returned to using the original "penguins" object when defining the overall graph data source so we have access to the individual data points, not just the summary data.
+
+However, within our layers to plot the mean (`geom_point()`) and standard deviation `geom_errorbar()`, we call up the mean_mass data object.
+
+```{r}
+
+ggplot(data = penguins, 
+       aes(x = species, 
+           y = body_mass_g)) + 
+  geom_jitter(aes(color = species),
+              width = 0.1,
+              alpha = 0.4) +
+  geom_point(data = mean_mass,
+             aes(x = species, 
+                 y = mean_mass),
+             inherit.aes = FALSE,
+             size = 3) +
+  geom_errorbar(data = mean_mass,
+                aes(x = species, 
+                    ymin = mean_mass - sd,
+                    ymax = mean_mass + sd),
+             inherit.aes = FALSE,
+                width = 0.25,
+                linewidth = 1) +
+  theme_bw()
+
+# Try adding a layer to the plot above to customize your axis labels! 
+
+```
+
+## Relationships between continuous variables
+
+Scatterplots are our best option for plotting relationships between two **continuous** variables. We create a scatterplot in `ggplot2` using `geom_point()`.
+
+```{r}
+
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm)) + 
+  geom_point() + 
+  theme_bw()
+
+```
+
+We can easily add a trendline to a plot using `geom_smooth()`. To ensure it is a *linear* fit, include `method = lm` within your `geom_smooth()` command.
+
+**Note!** It's best practice to only include linear trendlines when the relationship you are visualizing is **statistically significant**. R will *not* stop you from fitting any line you want to your data, so it is up to you to separately run appropriate statistical tests to ensure what you are visualizing is accurate and meaningful!
+
+We will be diving in to ecological statistics soon!
+
+```{r}
+
+# Fit linear model to plotted relationship
+summary(lm(bill_depth_mm ~ bill_length_mm, data = penguins))
+
+# Add a trendline to the overall dataset
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm)) + 
+  geom_point() +
+  geom_smooth(method = lm, color = "black") +
+  theme_bw()
+
+```
+
+We may want to annotate our plot to indicate the fit of the trendline. We can do that using an `annotate()` layer:
+
+```{r}
+
+# Annotate plot
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm)) + 
+  geom_point() +
+  geom_smooth(method = lm, color = "black") +
+  annotate("text",
+           x = 35, #where you center your text
+           y = 14,
+           label = "y = 20.88 - 0.085x \n p < 0.001, R2 = 0.05") + #best fit line
+  theme_bw()
+
+```
+
+Since we know that there are multiple penguin species present in the dataset, and since they tended to vary for some other body morphology characteristics we previously plotted, it's a good idea to plot species as a mapping aesthetic (at least during the "exploratory" visualization phase).
+
+If we include a "top level" mapping for species (e.g., by adding `color = species`), that mapping will propagate to other relevant layers of our plot, like fitting trendlines *by species*.
+
+```{r}
+
+# Fit linear model to plotted relationship
+summary(lm(bill_depth_mm ~ bill_length_mm + species, data = penguins))
+
+# Specify series of custom colors & add a trendline for EACH species
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm,
+                     color = species)) + 
+  geom_point() + 
+  geom_smooth(method = lm) +
+  scale_color_manual(values = c("goldenrod3", "dodgerblue4", "forestgreen")) +
+  labs(x = "Bill length (mm)", 
+       y = "Bill depth (mm)") +
+  theme_bw()
+
+```
+
+**Fun aside:** This dataset is an example of **Simpson's Paradox**, where an apparent overall relationship between two variables disappears or reverses when looking at subsets of the data (here, penguin species)!
+
+While it can be fun to use custom colors, it is also important to consider visual accessibility of the figures we are making. For example, will our color palette translate effectively to gray scale printing? Will it be fully interpretable to individuals with color-related visual impairments? The [`viridis` package](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html) includes pre-developed color palettes that help us easily accomplish these goals.
+
+```{r}
+
+# Use viridis colors & add a trendline for EACH species
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm,
+                     color = species)) + 
+  geom_point() + 
+  geom_smooth(method = lm) +
+  scale_color_viridis(discrete = TRUE,
+                      option = "viridis") +
+  labs(x = "Bill length (mm)", 
+       y = "Bill depth (mm)") +
+  theme_bw()
+
+```
+
+If you want to include/exclude certain hues in your plot, you can adjust the `start =` and `end =` commands to a value greater than 0 and less than 1, respectively.
+
+```{r}
+
+# Use viridis colors & add a trendline for EACH species
+ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm,
+                     color = species)) + 
+  geom_point() + 
+  geom_smooth(method = lm) +
+  scale_color_viridis(discrete = TRUE,
+                      option = "viridis",
+                      begin = 0, end = 0.8) + #adjust range of color spectrum used
+  labs(x = "Bill length (mm)", 
+       y = "Bill depth (mm)") +
+  theme_bw()
+
+```
+
+### Faceting
+
+Sometimes, your data will be such that you want to include multiple categorical variables as part of your plot. You can do this by adding a second mapping aesthetic to your plot (e.g., color *and* shape of points). However, this may visually obscure a pattern you are hoping to emphasize.
+
+```{r}
+
+# A little bit cluttered! 
+ggplot(penguins,
+       aes(x = flipper_length_mm,
+           y = body_mass_g,
+           color = species,
+           pch = sex)) + #pch changes shape of point visualized
+  geom_point() +
+  theme_bw()
+
+```
+
+**Time out!** We have another warning on our plot above:
+
+> Warning: Removed 9 rows containing missing values or values outside the scale range (`geom_point()`)
+
+Is this a graph axis limits issue, or a warning we can ignore? How do you know/confirm?
+
+Ok, back to our plot... instead of including male and female penguins of all species on a single plot, you can use *facets* to create sub-panels within your graph that break out the data across one of the factors. Here, we'll set up facets for the different penguin species, then use color *within* each facet to indicate the sex of the individual.
+
+```{r}
+
+ggplot(penguins,
+       aes(x = flipper_length_mm,
+           y = body_mass_g,
+           color = sex)) +
+  geom_point() +
+  facet_wrap(. ~ species) + #can add multiple variable, but might get messy i.e.(sex ~ species)
+  theme_bw()
+
+```
+
+You can allow each facet to have "free" scales (x and/or y), which can be useful when values vary widely among categorical variables. The default is to have one set of scales applied across facets.
+
+## Saving plots
+
+You can save any individual plot as an object (e.g., to your RStudio Environment) by assigning a name to that specific plot.
+
+```{r}
+density_plot <- ggplot(data = penguins, 
+                       mapping = aes(x = bill_length_mm,
+                                     fill = species)) + 
+  geom_density(alpha = 0.6) +
+  labs(x = "Bill length (mm)", 
+       y = "Density") +
+  scale_y_continuous(limits = c(0, 0.15),
+                     breaks = seq(0, 0.15, 0.05)) +
+  theme_bw()
+
+density_plot
+```
+
+You can also save a plot as an *output* of your script.
+
+The [`ggsave()` command](https://ggplot2.tidyverse.org/reference/ggsave.html) will (by default) save the last plot that you displayed, using the same size settings of your current graphics device (e.g., dimensions of your "Plots" window on RStudio). You can also easily specify output dimensions, file extension type, and image resolution (dots per inch), which can be helpful when preparing figures to meet the specifications of a particular publication.
+
+For example, running the following will save the last graph we made to our current working directory:
+
+```{r}
+
+# Command to check if "output" subfolder already exists, and create if not
+ifelse(!dir.exists(here("output")), 
+       dir.create(here("output")), "Folder exists already")
+
+ggsave(filename = here("output", "my_last_plot.png"), 
+       plot = last_plot(), # or replace with plot object name
+       width = 5, height = 3, units = "in",
+       dpi = 300)
+
+ggsave(filename = here("output", "my_density_plot.png"), 
+       plot = density_plot,
+       width = 5, height = 3, units = "in",
+       dpi = 300)
+
+```
+
+## Creating multi-panel plots
+
+We may also want to create multi-panel figures. The [`cowplot` package](https://wilkelab.org/cowplot/) is an add-on to ggplot that allows you to create more complex plots using the `plot_grid()` function.
+
+To incorporate multiple graphs into one multi-panel figure, you need to first save each graph as a separate object.
+
+Then, you arrange your graphs using `plot_grid()`
+
+```{r, message = FALSE}
+
+# Bill length density plot by species 
+p1 <- ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     fill = species)) + 
+  geom_density(alpha = 0.6) +
+  scale_y_continuous(limits = c(0, 0.15),
+                     breaks = seq(0, 0.15, 0.05)) +
+  scale_x_continuous(limits = c(30, 60)) +
+  scale_fill_manual(values = c("cyan3", "dodgerblue4", "forestgreen")) +
+  labs(x = "Bill length (mm)", 
+       y = "Observations") +
+  theme_bw()
+
+# Scatterplot of bill depth ~ length, by species
+p2 <- ggplot(data = penguins, 
+       mapping = aes(x = bill_length_mm,
+                     y = bill_depth_mm,
+                     color = species)) +
+  geom_point() +
+  geom_smooth(method = lm) +
+  scale_x_continuous(limits = c(30, 60)) +
+  scale_y_continuous(limits = c(10, 25)) +
+  scale_color_manual(values = c("cyan3", "dodgerblue4", "forestgreen")) +
+  labs(x = "Bill length (mm)", 
+       y = "Bill depth (mm)") +
+  theme_bw()
+
+# Combined 2-panel plot
+plot_grid(p1, p2, 
+          labels = c('A', 'B'), 
+          label_size = 12)
+
+```
+
+In this case, you might modify your plots slightly to only include the legend once.
+
+```{r, message = FALSE}
+
+prow <- plot_grid(
+  p1 + theme(legend.position="none"),
+  p2 + theme(legend.position="none"),
+  align = 'vh',
+  labels = c("A", "B"),
+  hjust = -1,
+  nrow = 1
+)
+
+legend <- get_legend(p1) #creating a new object for a legend from p1
+
+# Add the legend to the row we made earlier. Use rel_widths to adjust size relative to the plot panel.
+plot_grid(prow, legend, rel_widths = c(3, .5))
+
+```
+
+Now that you have some examples of graph types (`geoms_`) and other types of layers you'll use to customize and polish your graphs, you're equipped to start doing exploratory data visualization with your project data (for now) and creating polished figures for your paper & poster after we complete statistical analyses (soon!)
