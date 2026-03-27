@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-install relevant packages (if needed), load them, open the raw data set
+Install relevant packages (if needed), load them, open the raw data set
 
 ```{r load packages}
 # install.packages("tidyverse")
@@ -31,9 +31,8 @@ fish_condition <- raw_fish %>%
   mutate(body_condition = mass_g / length_mm) %>%
   filter(!is.na(body_condition)) %>% 
   
-  # is this line unnecessary? Seems like the table creation works without it
   select(site, sci_name, common_name, length_mm, mass_g, body_condition)
-
+  
 # selects for specific columns in the fish_condition object and runs summary stats on them
 summary(fish_condition[c("length_mm", "mass_g", "body_condition")])
 ```
@@ -43,8 +42,7 @@ Testing to see if the body condition of fish differed among species in pond_a by
 ```{r run ANOVA}
 
 # sci_name and common_name both reflect the same computed values for x
-fish_anova <- aov(body_condition ~ sci_name, 
-                  data = fish_condition)
+fish_anova <- aov(body_condition ~ common_name, data = fish_condition)
 
 # prints out our summary statistics
 summary(fish_anova) 
@@ -52,16 +50,111 @@ summary(fish_anova)
 # this prints out our sum of squares, deg. of freedom, & residual standard error
 print(fish_anova) 
 
-
-# fish_regression <- lm(body_condition ~ common_name, data = fish_condition)
-# summary(fish_regression)
-# print(fish_regression)
-# 
-# anova(fish_regression)
 ```
-
-\*\* Do we need to use the aov or lm function? They all appear to do the same thing within reason. It seems like the anova() function for lm also just rewrites the summary statistics. Additionally, why does the first variable get listed as "intercept" but every other variable gets listed out?
 
 descriptive statistics output line: F(df between, df within)=XX, p=XX
 
 The anova descriptive statistic results are **F(2, 172) = 153.7, p = 2e-16**. The p value is highly significant which means that there is a significant difference between body condition size among the three species of fish.
+
+
+Since our anova had a significant p-value, we run a Tukey Test to see which species significantly differed from each other for body condition.
+
+```{r Tukey test}
+
+TukeyHSD(fish_anova)
+
+```
+The p adj value is 0 for every species comparison has a significant difference in body condition size. If I understand this properly, the redbreast sunfish has the largest body_condition (mass (g) per length (mm)) compared to the other two species.
+
+
+Diagnostic plots to check and see if our anova meets the correct assumptions and normality is adequate
+
+```{r diagnostic plots}
+
+# QQ plot
+plot(fish_anova, which = 2)
+
+# scale-location plot
+plot(fish_anova, which = 3)
+
+# Levene test 
+leveneTest(fish_anova)
+```
+
+For an Anova, we have 3 assumptions: our observations are obtained independently and randomly which we have to follow for this case, the data are normally distributed which we see is roughly normally distributed from our QQ plot and the circles following the diagonal line (mostly), and the populations in each group have a common variance, which they appear to from the distinct sepearation of categories on the scale-location graph. The Levene test for this categorical test shows that we have common variance since our Pr value is greater than 0.05 (we fail to reject the null hypothesis that variance is equal among groups).
+
+
+Making the linear model for overall fish mass with respect to body length
+
+```{r linear model}
+
+# linear model for fish mass based on known body length
+fish_regression <- lm(mass_g ~ length_mm, data = fish_condition)
+
+summary(fish_regression)
+
+# correlation
+cor_value <- cor(x = fish_condition$length_mm, 
+                 y = fish_condition$mass_g)
+
+# the little r for the slope of the line of best fit
+print(cor_value) 
+
+cor_value^2
+
+```
+**F(1, 173) = 141.3, p = 2.2e-16**. There is a significant predictive relationship for length_mm since the p value is much lower than 0.05. However, the correlation value of 0.67 means that it is positively correlated, but not extremely correlated. Additionally the R^2 value is a little low so the line of best fit doesn't fit the data the best.
+
+
+
+Creating the diagnostic plots for linear model based on correct assumptions
+
+-   Observations are independent of each other
+-   There is a linear relationship between x and y
+-   Values of model residuals are normally distributed
+-   Variance of model residuals is the same across all values of x
+
+```{r lm diagnostic plots}
+
+# Residuals vs. fitted plot
+plot(fish_regression, which = 1)
+
+# QQ test for normality
+plot(fish_regression, which = 2)
+
+# shapiro test for normality
+shapiro.test(fish_regression$residuals)
+
+# Scale-Location plot for variance
+plot(fish_regression, which = 3)
+
+```
+The linearity of the model is good since the residuals vs fitted plot is roughly horizontal and centered along the zero. We know that there is normality because the plotted points on the QQ plot follow the diagonal line very well and the shapiro test shows us a p value of greater than 0.05 which means we fail to reject the null hypothesis that the residuals are normally distributed. Lastly, the scale-location graph is also roughly horizontal with randomly scattered points which shows that the variance is the same across all values of x.
+
+
+Visualizing the patterns in the ANOVA and linear model
+
+```{r graphed plots}
+
+# ANOVA plot body condition data by species
+ggplot(data = fish_condition, 
+         aes(x = common_name, 
+             y = body_condition)) +
+  geom_jitter(aes(col = common_name),
+              width = 0.2) +
+  geom_boxplot(fill = NA, 
+               outlier.shape = NA) +
+  theme_bw()
+
+# graph for linear model
+ggplot(data = fish_condition,
+       aes(x = length_mm, 
+           y = mass_g)) +
+  geom_point() +
+  theme_classic() +
+  
+  # put a linear best fit line
+  geom_smooth(method = "lm") 
+```
+
+These graphs help aid the significant findings from both the ANOVA and linear model tests (in fact I used them to double check the written values from above before even creating this chunk) and make them more readable and easy to understand. The ecological takehome message is that there is a significant difference between body condition (g/mm) between fish species and that fish mass (g) is positively correlated with fish size (mm). After working through and learning a lot of the basics again, I feel better than I did with the statistical tests, but it is still a lot to remember and not all of the diagnostic read-outs and summary stats feel super clear which means making the plotted graphs were also confusing at times (plus learning what the syntax for everything is in ggplot was a bit confusing at times too) - I feel like I sit at a 3, but I would still need help to get these results again.
